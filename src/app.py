@@ -7,11 +7,18 @@ import logging
 
 
 '''
-Automation of running this script would come in via task runner like Airflow which
-would control when the script needed to be triggered based on for example an event.
+Basic data pipeline to:
+1) Ingest data
+2) Clean and prepare data
+3) Process and analyze data
+4) Export data
 
-Below is manually triggered to provide a json file for my flask app to display
-average property prices by state.
+This script can be automated using a task runner like Airflow to trigger execution based on events or schedules.
+Currently, I manually trigger the generation of a JSON file for
+my Flask postcode app to display average property prices by state.
+
+The script includes (very basic) error handling for PySpark SQL operations
+and uses a context manager to manage the Spark session lifecycle.
 '''
 
 
@@ -70,30 +77,47 @@ def main():
             raise DataProcessingError("Failed to write the datafile to postgres") from e
 
         # investigate the data types
-        # print(df.dtypes)
+        # logging.info(df.dtypes)
+
+        # Inpect the data
+        # df.explain()
+        # df.describe().show()
 
         cleaned_df = clean_data(df)
 
         avg_price_df = calculate_avg_price_by_state_across_time(cleaned_df)
 
-        # convert the pandas df into a json string for flask
-        json_avg_price_df = avg_price_df.to_json(orient='records')
+        # write the data to the postcheck dbs
+        mysql_url = f"jdbc:mysql://localhost:3306/{Config.DB_MYSQL_DBNAME}"
+        mysql_properties = {
+            "user": Config.DB_MYSQL_USERNAME,
+            "password": Config.DB_MYSQL_PASSWORD,
+            "driver": "com.mysql.cj.jdbc.Driver"
+        }
 
-        # write and return a file
-        # written to Postcode Flask app's folder
-        # Task: investigate shared storage solution like Azure Blob storage for deployment
-        with open('../PostCheck-API-Flask/app/data/avg_price_by_state.json', 'w') as json_file:
-            try:
-                json_file.write(json_avg_price_df)
-            except Exception as e:
-                logging.error(f"Error writing pandas output to a new file: {e}")
-                raise DataProcessingError("Failed to write to a new file") from e
+        # Write the final DataFrame to the MySQL db
+        try:
+            avg_price_df.write.jdbc(url=mysql_url, table="property_reporting",
+                                    mode="overwrite", properties=mysql_properties)
+        except Exception as e:
+            logging.error(f"Error writing to the MySQL db: {e}")
+            raise Exception("Failed to write the DataFrame to MySQL") from e
 
-        return 'avg_price_by_state.json'
+        # # convert the pandas df into a dict for flask
+        # dict_avg_price_df = avg_price_df.to_dict(orient='records')
 
-        # Inpect the data
-        # df.explain()
-        # df.describe().show(100)
+        # # write and return a file to Postcode Flask app's folder
+        # # Task: investigate shared storage solution like Azure Blob storage for deployment
+        # file_path = '/home/staceyf/projects/PostCheck-API-Flask/app/data/avg_price_by_state.json'
+
+        # with open(file_path, 'w') as file:
+        #     try:
+        #         json.dump(dict_avg_price_df, file)  # serialised verison of the dic
+        #     except Exception as e:
+        #         logging.error(f"Error writing pandas output to a new file: {e}")
+        #         raise DataProcessingError("Failed to write to a new file") from e
+
+        # return 'avg_price_by_state.json'
 
 
 def clean_data(df):
@@ -103,18 +127,18 @@ def clean_data(df):
     df = df.withColumn("price", col("price").cast(IntegerType()))
     df = df.filter(df["price"].isNotNull())
     # null_price_count_after = df.filter(df["price"].isNull()).count()  # previous 67020
-    # print(f"Number of rows with NULL price after processing: {null_price_count_after}")
+    # logging.info(f"Number of rows with NULL price after processing: {null_price_count_after}")
 
     # convert strings to relevant data types
     df = df.withColumn("date_sold", to_date(col("date_sold"), "yyyy/MM/dd"))
     null_date_count = df.filter(col("date_sold").isNull()).count()
-    print(f"Number of rows with 'null' for date_sold: {null_date_count}")
+    logging.info(f"Number of rows with 'null' for date_sold: {null_date_count}")
 
     df = df.withColumn("bedrooms", col("bedrooms").cast(IntegerType()))
 
     # bedroom investigation
     null_bedroom_count = df.filter(col("bedrooms") == 0).count()
-    print(f"Number of rows with '0' for bedroom: {null_bedroom_count}")  # 729 with zero bedrooms
+    logging.info(f"Number of rows with '0' for bedroom: {null_bedroom_count}")  # 729 with zero bedrooms
     df = df.filter(df["bedrooms"] != 0)
 
     # state investigation
@@ -131,8 +155,7 @@ def clean_data(df):
 
 
 def calculate_avg_price_by_state_across_time(df):
-    avg_price_df = df.groupBy("state", "date_sold").agg(avg("price").alias("avg_price")).orderBy("state", "date_sold")
-    return avg_price_df.toPandas()
+    return df.groupBy("state", "date_sold").agg(avg("price").alias("avg_price")).orderBy("state", "date_sold")
 
 
 if __name__ == "__main__":
