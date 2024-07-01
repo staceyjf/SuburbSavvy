@@ -10,6 +10,8 @@ pyarrow = "*"
 setuptools = "*"
 psycopg2-binary = "*"
 python-dotenv = "*"
+sqlalchemy = "*"
+pymysql = "*"
 
 [dev-packages]
 

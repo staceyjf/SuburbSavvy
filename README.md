@@ -1,6 +1,6 @@
 # Welcome to SuburbSavvy
 
-SuburbSavvy is a simple first project exploring how to use PySpark and PostgreSQL to load a sample dataset into PostgreSQL, followed by basic data cleaning and preparation tasks.
+SuburbSavvy is a simple first project exploring how to use PySpark, PostgreSQL and mySQL to load a sample dataset into PostgreSQL, followed by basic data cleaning and preparation tasks and then write to a mySQL database.
 
 ## Installation
 

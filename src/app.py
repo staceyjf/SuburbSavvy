@@ -19,6 +19,12 @@ my Flask postcode app to display average property prices by state.
 
 The script includes (very basic) error handling for PySpark SQL operations
 and uses a context manager to manage the Spark session lifecycle.
+
+The Spark session is currently configured to run locally, utilizing all available logical processors
+for parallelizing the workload.
+
+The future aim is to refine this configuration to fully explore how Spark can be optimized
+for processing large datasets and utilize cloud resources for scalability and efficiency.
 '''
 
 
