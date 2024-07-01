@@ -67,7 +67,7 @@ def main():
             raise DataProcessingError("Failed to read the data file") from e
 
         # Java Database Connectivity URL for postgres and relating connection intergration
-        # Task: Local development only / consider impact when deployed
+        # Task: Local development only / consider impact of real world configuration
         jdbc_url = "jdbc:postgresql://localhost:5432/aus_property"
         connection_properties = {
             "user": Config.DB_USERNAME,
@@ -75,12 +75,12 @@ def main():
             "driver": "org.postgresql.Driver"
         }
 
-        # write the dataset to the db
+        # write the dataset via the JDBC driver
         try:
             df.write.jdbc(url=jdbc_url, table="house_sales", mode="overwrite", properties=connection_properties)
         except Exception as e:
             logging.error(f"Error writing to the postgres db: {e}")
-            raise DataProcessingError("Failed to write the datafile to postgres") from e
+            raise DataProcessingError("Failed to write the data file to postgres") from e
 
         # investigate the data types
         # logging.info(df.dtypes)
@@ -89,7 +89,22 @@ def main():
         # df.explain()
         # df.describe().show()
 
-        cleaned_df = clean_data(df)
+        # read from the postgres db via the JDBC driver
+        try:
+            postgres_db = (spark.read.format("jdbc")
+                                .option("url", jdbc_url)
+                                .options(**connection_properties)
+                                .option("dbtable", "house_sales")
+                                .load())
+        except Exception as e:
+            logging.error(f"Error reading the postgres db: {e}")
+            raise DataProcessingError("Failed to read the postgres db") from e
+
+        # Inpect the data
+        df.explain()
+        df.describe().show()
+
+        cleaned_df = clean_data(postgres_db)
 
         avg_price_df = calculate_avg_price_by_state_across_time(cleaned_df)
 
@@ -112,22 +127,6 @@ def main():
         except Exception as e:
             logging.error(f"Error writing to the MySQL db: {e}")
             raise Exception("Failed to write the DataFrame to MySQL") from e
-
-        # # convert the pandas df into a dict for flask
-        # dict_avg_price_df = avg_price_df.to_dict(orient='records')
-
-        # # write and return a file to Postcode Flask app's folder
-        # # Task: investigate shared storage solution like Azure Blob storage for deployment
-        # file_path = '/home/staceyf/projects/PostCheck-API-Flask/app/data/avg_price_by_state.json'
-
-        # with open(file_path, 'w') as file:
-        #     try:
-        #         json.dump(dict_avg_price_df, file)  # serialised verison of the dic
-        #     except Exception as e:
-        #         logging.error(f"Error writing pandas output to a new file: {e}")
-        #         raise DataProcessingError("Failed to write to a new file") from e
-
-        # return 'avg_price_by_state.json'
 
 
 def clean_data(df):
