@@ -6,6 +6,16 @@ from contextlib import contextmanager
 import logging
 
 
+'''
+Automation of running this script would come in via task runner like Airflow which
+would control when the script needed to be triggered based on for example an event.
+
+Below is manually triggered to provide a json file for my flask app to display
+average property prices by state.
+'''
+
+
+# TASK: investigate pyspark sql error handling
 class DataProcessingError(Exception):
     pass
 
@@ -72,7 +82,7 @@ def main():
         # write and return a file
         # written to Postcode Flask app's folder
         # Task: investigate shared storage solution like Azure Blob storage for deployment
-        with open('avg_price_by_state.json', 'w') as json_file:
+        with open('../PostCheck-API-Flask/app/data/avg_price_by_state.json', 'w') as json_file:
             try:
                 json_file.write(json_avg_price_df)
             except Exception as e:
