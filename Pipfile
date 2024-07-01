@@ -9,6 +9,7 @@ pandas = "*"
 pyarrow = "*"
 setuptools = "*"
 psycopg2-binary = "*"
+python-dotenv = "*"
 
 [dev-packages]
 

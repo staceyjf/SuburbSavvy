@@ -1,0 +1,56 @@
+# OS generated files #
+######################
+.DS_Store
+Thumbs.db
+
+# Editor and IDE folders #
+##########################
+.vscode/
+.idea/
+*.sublime-workspace
+
+# Python specific #
+###################
+__pycache__/
+*.py[cod]
+*.pyc
+
+# Virtual environment #
+########################
+venv/
+*.venv
+env/
+
+# Build output #
+################
+build/
+dist/
+*.egg-info/
+
+# Jupyter Notebook #
+####################
+.ipynb_checkpoints/
+
+# Log files #
+#############
+*.log
+
+# Dependency directories #
+##########################
+node_modules/
+jspm_packages/
+
+# Compiled Static sources #
+###########################
+/wwwroot/
+
+# Others #
+##########
+*.sqlite3
+*.tar.gz
+*.zip
+*.rar
+*.exe
+*.dll
+*.so
+*.dylib
