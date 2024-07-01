@@ -1,5 +1,5 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, to_date, length, avg
+from pyspark.sql.functions import col, to_date, length, avg, monotonically_increasing_id
 from pyspark.sql.types import IntegerType
 from config import Config
 from contextlib import contextmanager
@@ -93,6 +93,10 @@ def main():
 
         avg_price_df = calculate_avg_price_by_state_across_time(cleaned_df)
 
+        # creates a column with a unique id starting with 1
+        # not guarenteed to be subquential but will be unique and increasing)
+        avg_price_df_with_id = avg_price_df.withColumn('id', monotonically_increasing_id() + 1)
+
         # write the data to the postcheck dbs
         mysql_url = f"jdbc:mysql://localhost:3306/{Config.DB_MYSQL_DBNAME}"
         mysql_properties = {
@@ -103,8 +107,8 @@ def main():
 
         # Write the final DataFrame to the MySQL db
         try:
-            avg_price_df.write.jdbc(url=mysql_url, table="property_reporting",
-                                    mode="overwrite", properties=mysql_properties)
+            avg_price_df_with_id.write.jdbc(url=mysql_url, table="property_reporting",
+                                            mode="overwrite", properties=mysql_properties)
         except Exception as e:
             logging.error(f"Error writing to the MySQL db: {e}")
             raise Exception("Failed to write the DataFrame to MySQL") from e
