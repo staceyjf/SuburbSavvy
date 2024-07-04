@@ -6,16 +6,12 @@ from contextlib import contextmanager
 import logging
 
 
-'''
-Basic data pipeline to:
+"""
+Below is a basic data pipeline to:
 1) Ingest data
 2) Clean and prepare data
 3) Process and analyze data
 4) Export data
-
-This script can be automated using a task runner like Airflow to trigger execution based on events or schedules.
-Currently, I manually trigger the generation of a JSON file for
-my Flask postcode app to display average property prices by state.
 
 The script includes (very basic) error handling for PySpark SQL operations
 and uses a context manager to manage the Spark session lifecycle.
@@ -23,12 +19,13 @@ and uses a context manager to manage the Spark session lifecycle.
 The Spark session is currently configured to run locally, utilizing all available logical processors
 for parallelizing the workload.
 
-The future aim is to refine this configuration to fully explore how Spark can be optimized
-for processing large datasets and utilize cloud resources for scalability and efficiency.
-'''
+The future aim is to refine this configuration by implementing a task runner (Celery or Airflow) 
+and investigating how I can utilize something like Azure HDInsight to explore created clusters to
+fully explore how tasks can be parallelized.
+"""
 
 
-# TASK: investigate pyspark sql error handling
+# TASK: investigate pySpark sql error handling
 class DataProcessingError(Exception):
     pass
 
@@ -66,7 +63,7 @@ def main():
             logging.error(f"Error reading the data file: {e}")
             raise DataProcessingError("Failed to read the data file") from e
 
-        # Java Database Connectivity URL for postgres and relating connection intergration
+        # Java Database Connectivity URL for postgres and relating connection integration
         # Task: Local development only / consider impact of real world configuration
         jdbc_url = "jdbc:postgresql://localhost:5432/aus_property"
         connection_properties = {
@@ -76,16 +73,17 @@ def main():
         }
 
         # write the dataset via the JDBC driver
+        # housing the original source data
         try:
             df.write.jdbc(url=jdbc_url, table="house_sales", mode="overwrite", properties=connection_properties)
         except Exception as e:
-            logging.error(f"Error writing to the postgres db: {e}")
+            logging.error(f"Error writing to the Postgres db: {e}")
             raise DataProcessingError("Failed to write the data file to postgres") from e
 
         # investigate the data types
         # logging.info(df.dtypes)
 
-        # Inpect the data
+        # Inspect the data
         # df.explain()
         # df.describe().show()
 
@@ -97,10 +95,10 @@ def main():
                                 .option("dbtable", "house_sales")
                                 .load())
         except Exception as e:
-            logging.error(f"Error reading the postgres db: {e}")
-            raise DataProcessingError("Failed to read the postgres db") from e
+            logging.error(f"Error reading the mySQL db: {e}")
+            raise DataProcessingError("Failed to read the postgres mySQL") from e
 
-        # Inpect the data
+        # Inspect the data
         df.explain()
         df.describe().show()
 
@@ -109,7 +107,7 @@ def main():
         avg_price_df = calculate_avg_price_by_state_across_time(cleaned_df)
 
         # creates a column with a unique id starting with 1
-        # not guarenteed to be subquential but will be unique and increasing)
+        # not guaranteed to be sequential but will be unique and increasing)
         avg_price_df_with_id = avg_price_df.withColumn('id', monotonically_increasing_id() + 1)
 
         # write the data to the postcheck dbs
